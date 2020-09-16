@@ -3,8 +3,7 @@ import uvicorn
 import requests
 import json
 
-from typing import Optional
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
 
 HOST = "127.0.0.1"
@@ -43,7 +42,11 @@ def forward(message: Message):
 
 
 @app.post("/audio")
-def upload_audio(file: UploadFile = File(...)):
+def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
+    print(name)
+    with open(name + ".wav", "wb") as f:
+        f.write(file.file.read())
+
     return {"text": "成功接收语音，回复功能尚未完成"}
 
 
