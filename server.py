@@ -4,7 +4,7 @@ import requests
 import json
 
 from typing import Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
 
 HOST = "127.0.0.1"
@@ -40,6 +40,11 @@ def forward(message: Message):
     :return: Response from rasa
     """
     return get_rasa_response(message.message, message.sender)
+
+
+@app.post("/audio")
+def upload_audio(file: UploadFile = File(...)):
+    return {"text": "成功接收语音，回复功能尚未完成"}
 
 
 def serve():
