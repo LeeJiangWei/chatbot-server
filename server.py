@@ -43,8 +43,7 @@ def forward(message: Message):
 
 @app.post("/audio")
 def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
-    print(name)
-    with open(name + ".wav", "wb") as f:
+    with open("./data/{}.wav".format(name), "wb") as f:
         f.write(file.file.read())
 
     return {"text": "成功接收语音，回复功能尚未完成"}
