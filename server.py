@@ -1,17 +1,12 @@
 # start command: uvicorn main:app --reload
 import uvicorn
-import requests
-import json
-
 from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
 
-HOST = "127.0.0.1"
-PORT = 8000
+from utils import get_rasa_response
 
-RASA_HOST = "127.0.0.1"
-RASA_PORT = "5005"
-BASE_URL = "http://{}:{}/webhooks/rest/webhook".format(RASA_HOST, RASA_PORT)
+SERVER_HOST = "127.0.0.1"
+SERVER_PORT = 8000
 
 app = FastAPI()
 
@@ -21,21 +16,10 @@ class Message(BaseModel):
     message: str = None
 
 
-def get_rasa_response(message: str, sender: str = "server"):
-    """
-    Send message to rasa server and get response
-    :param message: String to be sent
-    :param sender: String that identify sender
-    :return: List of strings
-    """
-    responses = requests.post(BASE_URL, data=json.dumps({"sender": sender, "message": message})).json()
-    return responses
-
-
 @app.post("/message")
 def forward(message: Message):
     """
-    For text message, simply forward it to rasa server
+    Receive text message, simply forward it to rasa server
     :return: Response from rasa
     """
     return get_rasa_response(message.message, message.sender)
@@ -43,6 +27,12 @@ def forward(message: Message):
 
 @app.post("/audio")
 def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
+    """
+    Receive blob(wav) file, store it to disk
+    :param name: Name field in formdata, refers to file name
+    :param file: File field in formdata, refers to the blob file
+    :return: TODO: response with audio
+    """
     with open("./data/{}.wav".format(name), "wb") as f:
         f.write(file.file.read())
 
@@ -50,7 +40,7 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
 
 
 def serve():
-    uvicorn.run(app, host=HOST, port=PORT)
+    uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)
 
 
 if __name__ == '__main__':
