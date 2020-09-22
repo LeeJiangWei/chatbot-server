@@ -2,8 +2,9 @@
 import uvicorn
 from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
+import base64
 
-from utils import get_rasa_response
+from utils import get_rasa_response, text_to_voice
 
 SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 8000
@@ -37,6 +38,23 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
         f.write(file.file.read())
 
     return {"text": "成功接收语音，回复功能尚未完成"}
+
+
+@app.post("/message2audio")
+def message_to_audio(message: Message):
+    """
+    Temp method, receive message, send audio response
+    :param message:
+    :return:
+    """
+    text = message.message
+    filename = "response.wav"
+    if not text_to_voice(text, filename):
+        with open("./data/" + filename, "rb") as f:
+            wav_encoded = base64.b64encode(f.read())
+        return [{"attachment_base64": wav_encoded}]
+    else:
+        return [{"text": "语音转换失败"}]
 
 
 def serve():
