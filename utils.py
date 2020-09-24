@@ -8,10 +8,16 @@ RASA_PORT = "5005"
 BASE_URL = "http://{}:{}/webhooks/rest/webhook".format(RASA_HOST, RASA_PORT)
 
 # Config of TTS module
+TTS_DATA_PATH = "data/"
 TTS_INTERPRETER_PATH = "C:/Users/Doo/.conda/envs/pytorch"
 TTS_MAIN_PATH = "D:/ProgramProjects/tts_module"
 TTS_OUTPUT_PATH = TTS_MAIN_PATH + "/tacotron2_en_pretrained/output"
-TTS_COMMAND_STRING = '{interpreter_path}/python.exe {main_path}/main.py -i "{input_text}" -o "{output_filepath}"'
+TTS_COMMAND_STRING = '{interpreter_path}/python.exe {main_path}/main.py -i "{input_text}" -o "{output_file_path}"'
+
+# Config of STT module
+STT_DATA_PATH = "data/"
+STT_MAIN_PATH = ""
+STT_COMMAND_STRING = '{main_path} "{input_dir_path}" "{output_file_path}"'
 
 
 def get_rasa_response(message: str, sender: str = "server"):
@@ -25,21 +31,49 @@ def get_rasa_response(message: str, sender: str = "server"):
     return responses
 
 
-def text_to_voice(input_text: str, output_filename: str):
+def str_to_wav(input_str: str, output_filename: str):
     """
     Convert sting to wav file
+    :param input_str: input str to be converted
+    :param output_filename: output filename of wav file (without postfix)
     :return: Int value, 0 means success, otherwise failure
     """
     cwd = os.getcwd()
-    output_filepath = os.path.join(cwd, "data/" + output_filename)
+    output_file_path = os.path.join(cwd, TTS_DATA_PATH, output_filename + ".wav")
     os.chdir(TTS_MAIN_PATH)
     return_val = os.system(TTS_COMMAND_STRING.format(interpreter_path=TTS_INTERPRETER_PATH,
                                                      main_path=TTS_MAIN_PATH,
-                                                     input_text=input_text,
-                                                     output_filepath=output_filepath))
+                                                     input_text=input_str,
+                                                     output_file_path=output_file_path))
     os.chdir(cwd)
     return return_val
 
 
+def wav_to_str(input_filename: str, output_filename: str):
+    """
+    Convert wav file to txt file
+    :param input_filename: input filename of wav file to be converted (without postfix)
+    :param output_filename: output filename of txt file (without postfix)
+    :return: Str if success, False otherwise
+    """
+    cwd = os.getcwd()
+    input_dir_path = os.path.join(cwd, STT_DATA_PATH)
+    output_file_path = os.path.join(cwd, STT_DATA_PATH, output_filename)
+    os.chdir(STT_MAIN_PATH)
+    return_val = os.system(STT_COMMAND_STRING.format(main_path=TTS_MAIN_PATH,
+                                                     input_dir_path=input_dir_path,
+                                                     output_file_path=output_file_path))
+    os.chdir(cwd)
+
+    if not return_val:
+        return False
+    else:
+        with open(os.path.join(input_dir_path, output_filename + ".txt")) as f:
+            # TODO: Read corresponding text in txt file and return it
+            pass
+
+    return return_val
+
+
 if __name__ == '__main__':
-    print(text_to_voice("hello world!", "hw.wav"))
+    print(str_to_wav("hello world!", "hw.wav"))

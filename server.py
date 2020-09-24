@@ -4,7 +4,7 @@ from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
 import base64
 
-from utils import get_rasa_response, text_to_voice
+from utils import get_rasa_response, str_to_wav
 
 SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 8000
@@ -48,9 +48,9 @@ def message_to_audio(message: Message):
     :return:
     """
     text = message.message
-    filename = "response.wav"
-    if not text_to_voice(text, filename):
-        with open("./data/" + filename, "rb") as f:
+    filename = "response"
+    if not str_to_wav(text, filename):
+        with open("./data/{}.wav".format(filename), "rb") as f:
             wav_encoded = base64.b64encode(f.read())
         return [{"attachment_base64": wav_encoded}]
     else:
