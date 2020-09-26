@@ -17,7 +17,8 @@ TTS_COMMAND_STRING = '{interpreter_path}/python.exe {main_path}/main.py -i "{inp
 # Config of STT module
 STT_DATA_PATH = "data/"
 STT_MAIN_PATH = ""
-STT_COMMAND_STRING = '{main_path} "{input_dir_path}" "{output_file_path}"'
+STT_COMMAND = "run_custom.sh"
+STT_COMMAND_STRING = '{command} "{input_dir_path}" "{output_file_path}"'
 
 
 def get_rasa_response(message: str, sender: str = "server"):
@@ -36,7 +37,7 @@ def str_to_wav(input_str: str, output_filename: str):
     Convert sting to wav file
     :param input_str: input str to be converted
     :param output_filename: output filename of wav file (without postfix)
-    :return: Int value, 0 means success, otherwise failure
+    :return: Boolean value, True indicates success, False otherwise
     """
     cwd = os.getcwd()
     output_file_path = os.path.join(cwd, TTS_DATA_PATH, output_filename + ".wav")
@@ -46,10 +47,13 @@ def str_to_wav(input_str: str, output_filename: str):
                                                      input_text=input_str,
                                                      output_file_path=output_file_path))
     os.chdir(cwd)
-    return return_val
+    if not return_val:
+        return True
+    else:
+        return False
 
 
-def wav_to_str(input_filename: str, output_filename: str):
+def wav_to_str(input_filename: str, output_filename: str = "stt_output"):
     """
     Convert wav file to txt file
     :param input_filename: input filename of wav file to be converted (without postfix)
@@ -60,7 +64,7 @@ def wav_to_str(input_filename: str, output_filename: str):
     input_dir_path = os.path.join(cwd, STT_DATA_PATH)
     output_file_path = os.path.join(cwd, STT_DATA_PATH, output_filename)
     os.chdir(STT_MAIN_PATH)
-    return_val = os.system(STT_COMMAND_STRING.format(main_path=TTS_MAIN_PATH,
+    return_val = os.system(STT_COMMAND_STRING.format(command=STT_COMMAND,
                                                      input_dir_path=input_dir_path,
                                                      output_file_path=output_file_path))
     os.chdir(cwd)
@@ -68,11 +72,14 @@ def wav_to_str(input_filename: str, output_filename: str):
     if not return_val:
         return False
     else:
+        result_str = False
         with open(os.path.join(input_dir_path, output_filename + ".txt")) as f:
-            # TODO: Read corresponding text in txt file and return it
-            pass
-
-    return return_val
+            for line in f:
+                s = line.split(" ")
+                if s[0] == input_filename:
+                    result_str = "".join(s[1:]).replace("\n", "")
+                    break
+        return result_str
 
 
 if __name__ == '__main__':
