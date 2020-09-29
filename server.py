@@ -3,10 +3,8 @@ import uvicorn
 from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
 import base64
-import librosa
-import soundfile
 
-from utils import get_rasa_response, str_to_wav, wav_to_str
+from utils import get_rasa_response, str_to_wav, wav_to_str, down_sample
 
 SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 8000
@@ -37,10 +35,12 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
     :return: TODO: response with audio
     """
     filename = "./data/{}.wav".format(name)
+    # Save the wav file from network
     with open(filename, "wb") as f:
         f.write(file.file.read())
-    y, sr = librosa.load(filename, sr=16000)
-    soundfile.write(filename, y, sr, format="wav")
+
+    # Down sampling
+    down_sample(filename, 16000)
 
     converted_str = wav_to_str(name)
     responses = get_rasa_response(converted_str, "server")
