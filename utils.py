@@ -66,6 +66,7 @@ def wav_to_str(input_filename: str) -> str:
     cwd = os.getcwd()
     input_file_path = os.path.join(cwd, TTS_DATA_PATH, input_filename + ".wav")
 
+    buffer = ""
     with open(input_file_path, "rb") as f:
         wav = f.read()
         sock.send(wav)
