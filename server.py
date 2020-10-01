@@ -3,6 +3,7 @@ import uvicorn
 from fastapi import FastAPI, File, UploadFile, Form
 from pydantic import BaseModel
 import base64
+import os
 
 from utils import get_rasa_response, str_to_wav, wav_to_str, down_sample
 
@@ -35,6 +36,7 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
     :return: TODO: response with audio
     """
     filename = "./data/{}.wav".format(name)
+    wav_output_dir = os.path.join(os.getcwd(), "data")
     # Save the wav file from network
     with open(filename, "wb") as f:
         f.write(file.file.read())
@@ -47,11 +49,10 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
 
     for index, response in enumerate(responses):
         if "text" in response.keys():
-            filename = "response" + str(index)
-            if str_to_wav(response['text'], filename):
-                with open("./data/{}.wav".format(filename), "rb") as f:
-                    wav_encoded = base64.b64encode(f.read())
-                    response["audio"] = wav_encoded
+            str_to_wav(response['text'], wav_output_dir)
+            with open(os.path.join(wav_output_dir, "out.wav"), "rb") as f:
+                wav_encoded = base64.b64encode(f.read())
+                response["audio"] = wav_encoded
 
     return responses
 
