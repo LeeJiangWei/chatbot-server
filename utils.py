@@ -14,6 +14,7 @@ BASE_URL = "http://{}:{}/webhooks/rest/webhook".format(RASA_HOST, RASA_PORT)
 TTS_HOST = "127.0.0.1"
 TTS_PORT = 5051
 TTS_URL = "http://{}:{}/synthesis".format(TTS_HOST, TTS_PORT)
+TTS_DATA_PATH = "data"
 
 # Config of STT module (speech recognition)
 STT_HOST = "127.0.0.1"
