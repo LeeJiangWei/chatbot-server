@@ -33,7 +33,7 @@ def get_rasa_response(message: str, sender: str = "server"):
 
 
 def str_to_wav(input_str: str, output_dir: str = None):
-    r = requests.post(TTS_URL, data=json.dumps({"text:": input_str, "output_dir": output_dir}))
+    r = requests.post(TTS_URL, data=json.dumps({"text": input_str, "output_dir": output_dir}))
     print(r.json())
 
 
