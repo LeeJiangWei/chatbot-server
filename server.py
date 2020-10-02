@@ -35,8 +35,12 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
     :param file: File field in formdata, refers to the blob file
     :return: TODO: response with audio
     """
+    # file name of wav file received from network
     filename = "./data/{}.wav".format(name)
+
+    # output full path of speech synthesis
     wav_output_dir = os.path.join(os.getcwd(), "data")
+
     # Save the wav file from network
     with open(filename, "wb") as f:
         f.write(file.file.read())
@@ -45,7 +49,7 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
     down_sample(filename, 16000)
 
     converted_str = wav_to_str(name)
-    responses = get_rasa_response(converted_str, "server")
+    responses = get_rasa_response(converted_str)
 
     for index, response in enumerate(responses):
         if "text" in response.keys():
@@ -64,14 +68,19 @@ def message_to_audio(message: Message):
     :param message:
     :return:
     """
+    wav_output_dir = os.path.join(os.getcwd(), "data")
+
     text = message.message
-    filename = "response"
-    if str_to_wav(text, filename):
-        with open("./data/{}.wav".format(filename), "rb") as f:
-            wav_encoded = base64.b64encode(f.read())
-        return [{"attachment_base64": wav_encoded}]
-    else:
-        return [{"text": "语音转换失败"}]
+
+    responses = get_rasa_response(text)
+    for index, response in enumerate(responses):
+        if "text" in response.keys():
+            str_to_wav(response['text'], wav_output_dir)
+            with open(os.path.join(wav_output_dir, "out.wav"), "rb") as f:
+                wav_encoded = base64.b64encode(f.read())
+                response["audio"] = wav_encoded
+
+    return responses
 
 
 def serve():
