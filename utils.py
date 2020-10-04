@@ -55,7 +55,7 @@ def wav_to_str(input_filename: str) -> str:
         sock.send(wav)
         received_byte = sock.recv(2048)
         received_str = str(received_byte, encoding="utf-8")
-        while received_str != "\n":
+        while received_str != "\n" and received_str != "":
             print(received_byte)
             print(received_str)
             print("--------------------------------------------")
@@ -65,8 +65,9 @@ def wav_to_str(input_filename: str) -> str:
             received_byte = sock.recv(2048)
             received_str = str(received_byte, encoding="utf-8")
 
-    print("Final Recognized Result: ", buffer)
     sock.close()
+    buffer = buffer.replace(" ", "")
+    print("Final Recognized Result: ", buffer)
     return buffer
 
 
