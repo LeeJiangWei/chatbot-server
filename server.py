@@ -1,13 +1,15 @@
 # start command: uvicorn main:app --reload
 import uvicorn
 from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.responses import FileResponse
 import base64
 import os
 
 from utils import get_rasa_response, str_to_wav, wav_to_str, down_sample
 
-SERVER_HOST = "127.0.0.1"
+SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8000
 
 app = FastAPI()
@@ -18,8 +20,13 @@ class Message(BaseModel):
     message: str = None
 
 
+@app.get("/")
+def index():
+    return FileResponse("web/build/index.html")
+
+
 @app.post("/message")
-def forward(message: Message):
+def response_message_with_message(message: Message):
     """
     Receive text message, simply forward it to rasa server
     :return: Response from rasa
@@ -28,7 +35,7 @@ def forward(message: Message):
 
 
 @app.post("/audio")
-def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
+def response_audio_with_audio(name: str = Form(...), file: UploadFile = File(...)):
     """
     Receive blob(wav) file, store it to disk
     :param name: Name field in formdata, refers to file name
@@ -48,10 +55,12 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
     # Down sampling
     down_sample(filename, 16000)
 
+    # convert wav to text, and get text response
     converted_str = wav_to_str(name)
     responses = get_rasa_response(converted_str)
 
-    for index, response in enumerate(responses):
+    # for every returned response, if contains text, convert it into base64 encoded audio and add it
+    for i, response in enumerate(responses):
         if "text" in response.keys():
             str_to_wav(response['text'], wav_output_dir)
             with open(os.path.join(wav_output_dir, "out.wav"), "rb") as f:
@@ -62,7 +71,7 @@ def upload_audio(name: str = Form(...), file: UploadFile = File(...)):
 
 
 @app.post("/message2audio")
-def message_to_audio(message: Message):
+def response_message_with_audio(message: Message):
     """
     Temp method, receive message, send audio response
     :param message:
@@ -81,6 +90,9 @@ def message_to_audio(message: Message):
                 response["audio"] = wav_encoded
 
     return responses
+
+
+app.mount("/", StaticFiles(directory="web/build"), name="static")
 
 
 def serve():
