@@ -17,7 +17,7 @@ TTS_URL = "http://{}:{}/synthesis".format(TTS_HOST, TTS_PORT)
 TTS_DATA_PATH = "data"
 
 # Config of STT module (speech recognition)
-STT_HOST = "127.0.0.1"
+STT_HOST = "127.0.0.1"  # remote: 110.64.76.7
 STT_PORT = 5050
 
 

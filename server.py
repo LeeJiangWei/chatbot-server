@@ -1,13 +1,15 @@
 # start command: uvicorn main:app --reload
 import uvicorn
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, WebSocket
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 import base64
 import os
+import socket
 
 from utils import get_rasa_response, str_to_wav, wav_to_str, down_sample
+from utils import STT_HOST, STT_PORT
 
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8000
@@ -40,7 +42,7 @@ def response_audio_with_audio(name: str = Form(...), file: UploadFile = File(...
     Receive blob(wav) file, store it to disk
     :param name: Name field in formdata, refers to file name
     :param file: File field in formdata, refers to the blob file
-    :return: TODO: response with audio
+    :return: responses in dict
     """
     # file name of wav file received from network
     filename = "./data/{}.wav".format(name)
@@ -90,6 +92,25 @@ def response_message_with_audio(message: Message):
                 response["audio"] = wav_encoded
 
     return responses
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((STT_HOST, STT_PORT))
+
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_bytes()
+        sock.send(data)
+        received_byte = sock.recv(2048)
+        received_str = str(received_byte, encoding="utf-8")
+
+        print(received_byte)
+        print(received_str)
+        print("--------------------------------------------")
+
+        await websocket.send_text(received_str)
 
 
 app.mount("/", StaticFiles(directory="web/build"), name="static")
