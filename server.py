@@ -1,6 +1,7 @@
-# start command: uvicorn main:app --reload
+# start command: uvicorn server:app --reload
 import uvicorn
-from fastapi import FastAPI, File, UploadFile, Form, WebSocket
+from fastapi import FastAPI, File, UploadFile, Form, WebSocket, WebSocketDisconnect
+from websockets.exceptions import WebSocketException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.responses import FileResponse
@@ -45,7 +46,7 @@ def response_audio_with_audio(name: str = Form(...), file: UploadFile = File(...
     :return: responses in dict
     """
     # file name of wav file received from network
-    filename = "./data/{}.wav".format(name)
+    filename = f"./data/{name}.wav"
 
     # output full path of speech synthesis
     wav_output_dir = os.path.join(os.getcwd(), "data")
@@ -96,22 +97,22 @@ def response_message_with_audio(message: Message):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((STT_HOST, STT_PORT))
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # sock.connect((STT_HOST, STT_PORT))
+    data = bytes()
 
     await websocket.accept()
-    while True:
-        data = await websocket.receive_bytes()
-        sock.send(data)
-        received_byte = sock.recv(2048)
-        received_str = str(received_byte, encoding="utf-8")
-
-        print(received_byte)
-        print(received_str)
-        print("--------------------------------------------")
-
-        await websocket.send_text(received_str)
-
+    try:
+        while True:
+            data += await websocket.receive_bytes()
+            await websocket.send_text("Ack!")
+    except WebSocketDisconnect:
+        print("Websocket disconnected")
+    except WebSocketException as e:
+        print("Websocket Exception: ", e)
+    finally:
+        with open("./data/websocketAudio.wav", "wb") as f:
+            f.write(data)
 
 app.mount("/", StaticFiles(directory="web/build"), name="static")
 
