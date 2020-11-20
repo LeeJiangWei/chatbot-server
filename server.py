@@ -8,6 +8,7 @@ from starlette.responses import FileResponse
 import base64
 import os
 import socket
+import threading
 
 from utils import get_rasa_response, str_to_wav, wav_to_str, down_sample
 from utils import STT_HOST, STT_PORT
@@ -94,23 +95,72 @@ def response_message_with_audio(message: Message):
 
     return responses
 
+lock= threading.Lock()
+class STTReciever(threading.Thread):
+    def __init__(self,sock:socket.socket,websocket:WebSocket):
+        threading.Thread.__init__(self)
+        self.sock=sock
+        self.websocket=websocket
+        self.res=str()
+        # self.lock=lock
+        self.update_flag=False
+    def run(self):
+        print("reciever_running...")
+        f=open("./data/TTS_result.txt","a")
+        while(1):
+            try:
+                res=self.sock.recv(2048).decode("utf-8")
+                lock.acquire()
+                print("lock acquired by reciever")
+                self.res=res
+                self.update_flag=True
+                lock.release()
+                print("lock released by reciever")
+
+                if(res):
+                    print(res)
+                    f.write(res)
+                    if(res.split()[0]!="0.00"):
+                        break
+                else: break
+            except socket.timeout as e:
+                f.write("TimeoutException: {}\n".format(e))
+                continue
+        f.close()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # sock.connect((STT_HOST, STT_PORT))
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((STT_HOST, STT_PORT))
+    # sock.setblocking(False)
+    sock.settimeout(10)
     data = bytes()
-
+    # lock=threading.Lock()
+    reciever_thread=STTReciever(sock,websocket)
     await websocket.accept()
     try:
+        reciever_thread.start()
         while True:
-            data += await websocket.receive_bytes()
+            chunk = await websocket.receive_bytes()
+            data += chunk
             await websocket.send_text("Ack!")
+            sock.send(chunk)
+            if(not lock.locked()):
+                lock.acquire()
+                if(reciever_thread.update_flag == True):
+                    res=reciever_thread.res
+                    reciever_thread.update_flag=False
+                    lock.release()
+                    print("send ws")
+                    await websocket.send_text(res)
+                else: lock.release()
     except WebSocketDisconnect:
         print("Websocket disconnected")
     except WebSocketException as e:
         print("Websocket Exception: ", e)
     finally:
+        reciever_thread.join()
+        sock.close()
         with open("./data/websocketAudio.wav", "wb") as f:
             f.write(data)
 
