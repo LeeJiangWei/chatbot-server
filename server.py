@@ -94,12 +94,15 @@ def response_message_with_audio(message: Message):
                 response["audio"] = wav_encoded
 
     return responses
-
+lock= threading.Lock()
 class STTReciever(threading.Thread):
     def __init__(self,sock:socket.socket,websocket:WebSocket):
         threading.Thread.__init__(self)
         self.sock=sock
         self.websocket=websocket
+        self.res=str()
+        # self.lock=lock
+        self.update_flag=False
     def run(self):
         count=0
         print("reciever_running...")
@@ -107,18 +110,29 @@ class STTReciever(threading.Thread):
         while(1):
             try:
                 # f.write("loop:{}\n".format(count))
+
                 count+=1
+
                 res=self.sock.recv(2048).decode("utf-8")
+                lock.acquire()
+                print("lock acquired by reciever")
+                self.res=res
+                self.update_flag=True
+                lock.release()
+                print("lock released by reciever")
+
+                # self.res=res
+                # self.update_flag=True
                 if(res):
                     print(res)
-                    # self.websocket.send_text(res)
+                    # self.websocket.send_text("res")
                     f.write(res)
                     if(res.split()[0]!="0.00"):
                         break
                     # f.close()
                 else: break
             except socket.timeout as e:
-                f.write("TimeoutError: {}\n".format(e))
+                f.write("TimeoutException: {}\n".format(e))
                 continue
         f.close()
         # except:
@@ -132,6 +146,7 @@ async def websocket_endpoint(websocket: WebSocket):
     # sock.setblocking(False)
     sock.settimeout(10)
     data = bytes()
+    # lock=threading.Lock()
     reciever_thread=STTReciever(sock,websocket)
     await websocket.accept()
     try:
@@ -141,6 +156,15 @@ async def websocket_endpoint(websocket: WebSocket):
             data += chunk
             await websocket.send_text("Ack!")
             sock.send(chunk)
+            if(not lock.locked()):
+                lock.acquire()
+                if(reciever_thread.update_flag==True):
+                    res=reciever_thread.res
+                    reciever_thread.update_flag=False
+                    lock.release()
+                    print("send ws")
+                    await websocket.send_text(res)
+                else: lock.release()
     except WebSocketDisconnect:
         print("Websocket disconnected")
     except WebSocketException as e:
