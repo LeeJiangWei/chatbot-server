@@ -94,6 +94,7 @@ def response_message_with_audio(message: Message):
                 response["audio"] = wav_encoded
 
     return responses
+
 lock= threading.Lock()
 class STTReciever(threading.Thread):
     def __init__(self,sock:socket.socket,websocket:WebSocket):
@@ -104,15 +105,10 @@ class STTReciever(threading.Thread):
         # self.lock=lock
         self.update_flag=False
     def run(self):
-        count=0
         print("reciever_running...")
         f=open("./data/TTS_result.txt","a")
         while(1):
             try:
-                # f.write("loop:{}\n".format(count))
-
-                count+=1
-
                 res=self.sock.recv(2048).decode("utf-8")
                 lock.acquire()
                 print("lock acquired by reciever")
@@ -121,23 +117,16 @@ class STTReciever(threading.Thread):
                 lock.release()
                 print("lock released by reciever")
 
-                # self.res=res
-                # self.update_flag=True
                 if(res):
                     print(res)
-                    # self.websocket.send_text("res")
                     f.write(res)
                     if(res.split()[0]!="0.00"):
                         break
-                    # f.close()
                 else: break
             except socket.timeout as e:
                 f.write("TimeoutException: {}\n".format(e))
                 continue
         f.close()
-        # except:
-        #     pass# break
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -158,7 +147,7 @@ async def websocket_endpoint(websocket: WebSocket):
             sock.send(chunk)
             if(not lock.locked()):
                 lock.acquire()
-                if(reciever_thread.update_flag==True):
+                if(reciever_thread.update_flag == True):
                     res=reciever_thread.res
                     reciever_thread.update_flag=False
                     lock.release()
