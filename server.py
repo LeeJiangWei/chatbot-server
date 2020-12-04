@@ -132,38 +132,56 @@ class STTReceiver(threading.Thread):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((STT_HOST, STT_PORT))
-    sock.settimeout(10)
-    data = bytes()
-
-    receiver_thread = STTReceiver(sock, websocket)
     await websocket.accept()
+    counter = 0
+    data = bytes()
     try:
-        receiver_thread.start()
-        while receiver_thread.is_alive():
+        while True:
             chunk = await websocket.receive_bytes()
+            with open(f"./data/websocketAudio{counter}.wav", "wb") as f:
+                f.write(chunk)
+            counter += 1
             data += chunk
-            await websocket.send_text("Ack!")
-
-            sock.send(chunk)
-            if not lock.locked():
-                lock.acquire()
-                if receiver_thread.update_flag:
-                    res = receiver_thread.res
-                    receiver_thread.update_flag = False
-                    await websocket.send_text(res)
-                lock.release()
     except WebSocketDisconnect:
         print("Websocket disconnected.")
     except WebSocketException as e:
         print("Websocket Exception: ", e)
     finally:
-        receiver_thread.join()
-        sock.close()
         with open("./data/websocketAudio.wav", "wb") as f:
             f.write(data)
-        print("Websocket endpoint exit.")
+
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # sock.connect((STT_HOST, STT_PORT))
+    # sock.settimeout(10)
+    # data = bytes()
+    #
+    # receiver_thread = STTReceiver(sock, websocket)
+    # await websocket.accept()
+    # try:
+    #     receiver_thread.start()
+    #     while receiver_thread.is_alive():
+    #         chunk = await websocket.receive_bytes()
+    #         data += chunk
+    #         await websocket.send_text("Ack!")
+    #
+    #         sock.send(chunk)
+    #         if not lock.locked():
+    #             lock.acquire()
+    #             if receiver_thread.update_flag:
+    #                 res = receiver_thread.res
+    #                 receiver_thread.update_flag = False
+    #                 await websocket.send_text(res)
+    #             lock.release()
+    # except WebSocketDisconnect:
+    #     print("Websocket disconnected.")
+    # except WebSocketException as e:
+    #     print("Websocket Exception: ", e)
+    # finally:
+    #     receiver_thread.join()
+    #     sock.close()
+    #     with open("./data/websocketAudio.wav", "wb") as f:
+    #         f.write(data)
+    #     print("Websocket endpoint exit.")
 
 
 app.mount("/", StaticFiles(directory="web/build"), name="static")
