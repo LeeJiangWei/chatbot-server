@@ -19,7 +19,7 @@ TTS_URL_BIN = "http://{}:{}/binary".format(TTS_HOST, TTS_PORT)
 TTS_DATA_PATH = "data"
 
 # Config of ASR module (speech recognition)
-ASR_HOST = "110.64.76.7"  # remote: 110.64.76.7
+ASR_HOST = "127.0.0.1"  # remote: 110.64.76.7
 ASR_PORT = 5050
 
 

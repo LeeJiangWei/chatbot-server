@@ -1,14 +1,16 @@
 # start command: uvicorn server:app --reload
 import base64
+import io
 import os
 import socket
 import threading
+import zipfile
 
 import uvicorn
 from fastapi import FastAPI, File, UploadFile, Form, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, StreamingResponse
 from websockets.exceptions import WebSocketException
 
 from utils import get_rasa_response, str_to_wav_file, wav_file_to_str, down_sample
@@ -192,12 +194,21 @@ async def websocket_endpoint(websocket: WebSocket):
 def response_wav_with_wav_bin(wav_data: bytes = File(...)):
     converted_str = wav_bin_to_str(wav_data)
     responses = get_rasa_response(converted_str, "nano")
+
+    zip_container = io.BytesIO()
+    zf = zipfile.ZipFile(zip_container, "w")
+
     for response in responses:
         if "text" in response.keys():
-            wav = str_to_wav_bin(response['text'])
-            response["audio"] = wav
+            text = response['text']
 
-    return responses
+            wav = str_to_wav_bin(text)
+            zf.writestr(text, wav)
+
+    zf.close()
+    zip_container.seek(0)
+
+    return StreamingResponse(zip_container, media_type="application/x-zip-compressed")
 
 
 app.mount("/", StaticFiles(directory="web/build"), name="static")
