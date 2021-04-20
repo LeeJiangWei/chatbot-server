@@ -1,17 +1,18 @@
 # start command: uvicorn server:app --reload
-import uvicorn
-from fastapi import FastAPI, File, UploadFile, Form, WebSocket, WebSocketDisconnect
-from websockets.exceptions import WebSocketException
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from starlette.responses import FileResponse
 import base64
 import os
 import socket
 import threading
 
-from utils import get_rasa_response, str_to_wav, wav_to_str, down_sample
-from utils import STT_HOST, STT_PORT
+import uvicorn
+from fastapi import FastAPI, File, UploadFile, Form, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from starlette.responses import FileResponse
+from websockets.exceptions import WebSocketException
+
+from utils import get_rasa_response, str_to_wav_file, wav_file_to_str, down_sample
+from utils import wav_bin_to_str, str_to_wav_bin
 
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8000
@@ -60,13 +61,13 @@ def response_audio_with_audio(name: str = Form(...), file: UploadFile = File(...
     down_sample(filename, 16000)
 
     # convert wav to text, and get text response
-    converted_str = wav_to_str(name)
+    converted_str = wav_file_to_str(name)
     responses = get_rasa_response(converted_str)
 
     # for every returned response, if contains text, convert it into base64 encoded audio and add it
     for i, response in enumerate(responses):
         if "text" in response.keys():
-            str_to_wav(response['text'], wav_output_dir)
+            str_to_wav_file(response['text'], wav_output_dir)
             with open(os.path.join(wav_output_dir, "out.wav"), "rb") as f:
                 wav_encoded = base64.b64encode(f.read())
                 response["audio"] = wav_encoded
@@ -88,7 +89,7 @@ def response_message_with_audio(message: Message):
     responses = get_rasa_response(text)
     for index, response in enumerate(responses):
         if "text" in response.keys():
-            str_to_wav(response['text'], wav_output_dir)
+            str_to_wav_file(response['text'], wav_output_dir)
             with open(os.path.join(wav_output_dir, "out.wav"), "rb") as f:
                 wav_encoded = base64.b64encode(f.read())
                 response["audio"] = wav_encoded
@@ -182,6 +183,21 @@ async def websocket_endpoint(websocket: WebSocket):
     #     with open("./data/websocketAudio.wav", "wb") as f:
     #         f.write(data)
     #     print("Websocket endpoint exit.")
+
+
+# Belows are for nano client
+
+
+@app.post("/nano")
+def response_wav_with_wav_bin(wav_data: bytes = File(...)):
+    converted_str = wav_bin_to_str(wav_data)
+    responses = get_rasa_response(converted_str, "nano")
+    for response in responses:
+        if "text" in response.keys():
+            wav = str_to_wav_bin(response['text'])
+            response["audio"] = wav
+
+    return responses
 
 
 app.mount("/", StaticFiles(directory="web/build"), name="static")
